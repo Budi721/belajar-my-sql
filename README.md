@@ -745,3 +745,221 @@ SELECT *
 +-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
 80 rows in set (0.00 sec)
 ```
+
+## Sub Query
+#### Di WHERE CLAUSE
+```
+SELECT *
+    -> FROM products
+    -> WHERE price > (SELECT AVG(price) FROM products);
++-------+-------------------+------------------+-------+----------+---------------------+-------------+
+| id    | name              | description      | price | quantity | created_at          | id_category |
++-------+-------------------+------------------+-------+----------+---------------------+-------------+
+| P0001 | Mie Ayam Original | NULL             | 15000 |      100 | 2021-02-23 14:21:41 | C0001       |
+| P0003 | Mie Ayam Ceker    | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 | C0001       |
+| P0006 | Bakso Rusuk       | NULL             | 25000 |      200 | 2021-02-23 16:12:53 | C0001       |
+| P0008 | Es Campur         | NULL             | 15000 |      500 | 2021-02-23 16:12:53 | C0002       |
+| P0013 | Mie Ayam Jamur    | NULL             | 20000 |       50 | 2021-02-23 16:12:53 | C0001       |
+| P0014 | Bakso Telor       | NULL             | 20000 |      150 | 2021-02-23 16:12:53 | C0001       |
+| P0015 | Bakso Jando       | NULL             | 25000 |      300 | 2021-02-23 16:12:53 | C0001       |
+| X0001 | X Satu            | NULL             | 25000 |      200 | 2021-02-24 13:53:23 | NULL        |
+| X0003 | X Tiga            | NULL             | 15000 |      500 | 2021-02-24 13:53:23 | NULL        |
++-------+-------------------+------------------+-------+----------+---------------------+-------------+
+9 rows in set (0.01 sec)
+```
+
+#### Di FROM CLAUSE
+```
+SELECT MAX(cp.price)
+    -> FROM (SELECT price
+    ->       FROM categories
+    ->                JOIN products ON (products.id_category = categories.id)) as cp;
++---------------+
+| MAX(cp.price) |
++---------------+
+|         25000 |
++---------------+
+1 row in set (0.00 sec)
+```
+
+#### Set Operator
+* UNION dan UNION ALL
+```
+SELECT email
+    -> FROM customers
+    -> UNION
+    -> SELECT email
+    -> FROM guestbooks;
++---------------------+
+| email               |
++---------------------+
+| eko@gmail.com       |
+| kurniawan@gmail.com |
+| guest@gmail.com     |
+| guest2@gmail.com    |
+| guest3@gmail.com    |
++---------------------+
+5 rows in set (0.01 sec)
+
+mysql> SELECT email
+    -> FROM customers
+    -> UNION ALL
+    -> SELECT email
+    -> FROM guestbooks;
++---------------------+
+| email               |
++---------------------+
+| eko@gmail.com       |
+| kurniawan@gmail.com |
+| guest@gmail.com     |
+| guest2@gmail.com    |
+| guest3@gmail.com    |
+| eko@gmail.com       |
+| eko@gmail.com       |
+| eko@gmail.com       |
++---------------------+
+8 rows in set (0.00 sec)
+
+```
+* INTERSECT (Irisan Query Pertama sma Query Kedua)
+```
+mysql> SELECT DISTINCT email
+    -> FROM customers
+    -> WHERE email IN (SELECT DISTINCT email FROM guestbooks);
++---------------+
+| email         |
++---------------+
+| eko@gmail.com |
++---------------+
+1 row in set (0.01 sec)
+
+
+mysql> SELECT DISTINCT customers.email
+    -> FROM customers
+    ->          INNER JOIN guestbooks ON (guestbooks.email = customers.email);
++---------------+
+| email         |
++---------------+
+| eko@gmail.com |
++---------------+
+1 row in set (0.00 sec)
+```
+
+* MINUS OPERATOR (Query pertama dihilangkan query kedua)
+```
+mysql> SELECT DISTINCT customers.email, guestbooks.email
+    -> FROM customers
+    ->          LEFT JOIN guestbooks ON (customers.email = guestbooks.email)
+    -> WHERE guestbooks.email IS NULL;
++---------------------+-------+
+| email               | email |
++---------------------+-------+
+| kurniawan@gmail.com | NULL  |
++---------------------+-------+
+1 row in set (0.00 sec)
+```
+
+## Transaction
+> Perintah DDL tidak dapat menggunakan Transaction, Hanya DML spt INSERT, UPDATE, DELETE;
+> Menggunakan perintah ```START TRANSACTION``` sampai ```COMMIT``` atau ```ROLLBACK``` 
+
+#### Sukses
+```
+START TRANSACTION;
+Query OK, 0 rows affected (0.00 sec)
+
+INSERT INTO guestbooks(email, title, content) VALUES ('contoh@gmail.com', 'Contoh', 'contoh');  
+Query OK, 1 row affected (0.00 sec)
+
+SELECT * FROM guestbooks;
++----+------------------+--------+---------+
+| id | email            | title  | content |
++----+------------------+--------+---------+
+|  1 | guest@gmail.com  | Hello  | Hello   |
+|  2 | guest2@gmail.com | Hello  | Hello   |
+|  3 | guest3@gmail.com | Hello  | Hello   |
+|  4 | eko@gmail.com    | Hello  | Hello   |
+|  5 | eko@gmail.com    | Hello  | Hello   |
+|  6 | eko@gmail.com    | Hello  | Hello   |
+|  7 | contoh@gmail.com | Contoh | contoh  |
++----+------------------+--------+---------+
+7 rows in set (0.00 sec)
+
+COMMIT ;
+Query OK, 0 rows affected (0.01 sec)
+```
+
+#### Gagal
+```
+START TRANSACTION;
+Query OK, 0 rows affected (0.00 sec)
+
+DELETE FROM guestbooks;
+Query OK, 7 rows affected (0.02 sec)
+
+SELECT * FROM guestbooks;
+Empty set (0.00 sec)
+
+ROLLBACK;
+Query OK, 0 rows affected (0.01 sec)
+```
+
+## Locking
+> OTOMATIS jika menggunakan START TRANSACTION;
+
+> ```MANUAL SELECT * FROM product WHERE id = 'P0001' FOR UPDATE``` 
+> Nanti client ke 2 menunggu sampai COMMIT;
+
+#### DEADLOCK 
+> Saat  user 1 select p0002 -> select p0001 (sudah dilock user2) 
+> user 2 select p0001 -> select p0002 (sudah dilock user1)
+
+#### LOCKING TABLE
+
+> LOCK TABLES products READ;
+> user1 yang lock bisa read tdk bisa write;
+> user2 bisa read tidak bisa write;
+
+> LOCK TABLES products WRITE;
+> user1 yang lock bisa read, bisa write;
+> user2 tidak bisa read, tidak bisa write
+
+> Untuk menghapus lock tabel menggunakan perintah ```UNLOCK TABLES```
+ 
+> LOCKING INSTANCE / Segala command DDL tidak bisa (ALTER / CREATE TABLE)
+
+> ```LOCK INSTANCE FOR BACKUP```
+> ```UNLOCK INSTANCE```
+
+## User Management
+> Best practice tidak menggunakan user root
+> Untuk setiap apliksi dibuatkan user tersendiri, dan dapat menambahkan hak akses
+
+> Untuk menambahkan user
+```CREATE USER 'eko'@'localhost';```
+> Untuk menghapus user
+```DROP USER 'eko'@'localhost'```
+> Untuk menambahkan hak akses
+```GRANT SELECT, INSERT, UPDATE, DELETE ON belajar_mysql.* TO 'eko'@'localhost'```
+> Untuk menghapus hak akses
+```REVOKE SELECT ON belajar_mysql.* FROM 'eko'@'localhost'```
+> Untuk menambahkan password 
+```SET PASSWORD FOR 'eko'@'localhost' = 'rahasia'```
+
+## Backup Data
+> Menggunakan progam MySQL Dump dengan perintah
+```
+./bin/mysqldump belajar_mysql --user root -password --result-file=/Users/Khannedy/Document/.../backup.sql
+```
+
+## Restore Data
+> Menggunakan perintah 
+```
+./bin/mysql --user root -password belajar_mysql_import < /Users/Khannedy/Document/.../backup.sql
+```
+> Di dalam aplikasi MySQL langsung
+
+* ```CREATE DATABASE belajar_mysql_import_source```
+* ```USE DATABASE belajar_mysql_import_source```
+* ```SOURCE /Users/Khannedy/Document/.../backup.sql```
+
