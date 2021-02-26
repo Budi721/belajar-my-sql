@@ -1,5 +1,4 @@
-# belajar-my-sql
-
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Intro to MySQL
 
 ### Untuk membuka MySQL
@@ -397,4 +396,352 @@ SELECT COUNT(id) as total,
 +-------+----------+
 1 row in set (0.00 sec)
 
+```
+
+## Constraint
+
+### Unique Constraint
+> Unique constraint agar isi di kolom yang kolom constraint tidak terdapat duplikasi data
+> Secara otomatis ```PRIMARY KEY``` masuk ke dalam ```UNIQUE CONSTRAINT```
+
+#### Perintah saat baru membuat tabel
+```
+CREATE TABLE customers(
+    -> id INT NOT NULL AUTO_INCREMENT,
+    -> email VARCHAR(100) NOT NULL,
+    -> first_name VARCHAR(100) NOT NULL,
+    -> last_name VARCHAR(100),
+    -> PRIMARY KEY(id),
+    -> UNIQUE KEY email_unique(email)
+    -> ) ENGINE = InnoDB;
+Query OK, 0 rows affected (0.05 sec)
+
+mysql> DESCRIBE customers;
++------------+--------------+------+-----+---------+----------------+
+| Field      | Type         | Null | Key | Default | Extra          |
++------------+--------------+------+-----+---------+----------------+
+| id         | int(11)      | NO   | PRI | NULL    | auto_increment |
+| email      | varchar(100) | NO   | UNI | NULL    |                |
+| first_name | varchar(100) | NO   |     | NULL    |                |
+| last_name  | varchar(100) | YES  |     | NULL    |                |
++------------+--------------+------+-----+---------+----------------+
+4 rows in set (0.01 sec)
+```
+
+#### Menghapus dan Menambahkan Constraint saat tabel sudah dibuat
+```
+ALTER TABLE customers
+    -> DROP CONSTRAINT email_unique;
+```
+> Untuk menambahkan tinggal ganti perintah ```DROP``` dengan ```ADD```
+
+### Check Contraint
+> Untuk memberikan syarat data untuk kolom tersebut 
+```
+ ALTER TABLE products
+    ->     ADD CONSTRAINT price_check CHECK ( price >= 1000 );
+Query OK, 0 rows affected (0.03 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+```
+> Setelah dimasukkan perintah tersebut kolom price tidak boleh lebih dari 1000
+
+## Index 
+
+> Menyimpan data dalam B-Tree 
+> Proses query menjadi lebih cepat, tetapi untuk memanipulasi data menjadi lebih lambat
+> Ketika membuat primary key dan unique key tidak perlu menambahkan index
+
+```
+CREATE TABLE sellers
+    -> (
+    ->     id    INT          NOT NULL AUTO_INCREMENT,
+    ->     name  VARCHAR(100) NOT NULL,
+    ->     name2 VARCHAR(100) ,
+    ->     name3 VARCHAR(100) ,
+    ->     email VARCHAR(100) NOT NULL,
+    ->     PRIMARY KEY (id),
+    ->     UNIQUE KEY email_unique (email),
+    ->     INDEX name_index (name),
+    ->     INDEX name2_index (name2),
+    ->     INDEX name3_index (name3),
+    ->     INDEX name1_name2_name3_index (name, name2, name3)
+    -> ) ENGINE = InnoDB;
+Query OK, 0 rows affected (0.07 sec)
+
+DESC sellers;
++-------+--------------+------+-----+---------+----------------+
+| Field | Type         | Null | Key | Default | Extra          |
++-------+--------------+------+-----+---------+----------------+
+| id    | int(11)      | NO   | PRI | NULL    | auto_increment |
+| name  | varchar(100) | NO   | MUL | NULL    |                |
+| name2 | varchar(100) | YES  | MUL | NULL    |                |
+| name3 | varchar(100) | YES  | MUL | NULL    |                |
+| email | varchar(100) | NO   | UNI | NULL    |                |
++-------+--------------+------+-----+---------+----------------+
+5 rows in set (0.00 sec)
+```
+
+## Full Text Search 
+
+### Menambahkan FTS
+```
+ALTER TABLE products
+    -> ADD FULLTEXT product_search(name, description);
+Query OK, 0 rows affected, 1 warning (0.37 sec)
+Records: 0  Duplicates: 0  Warnings: 1
+```
+
+### Menghapus FTS
+```
+ALTER TABLE products
+    -> DROP INDEX product_search;
+Query OK, 0 rows affected (0.10 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+```
+
+### Contoh FTS dengan Tiga Mode Berbeda
+```
+ SELECT *
+    -> FROM products
+    -> WHERE MATCH(name, description)
+    ->             AGAINST('ayam' IN NATURAL LANGUAGE MODE);
++-------+-------------------+----------+------------------+-------+----------+---------------------+
+| id    | name              | category | description      | price | quantity | created_at          |
++-------+-------------------+----------+------------------+-------+----------+---------------------+
+| P0003 | Mie Ayam Ceker    | Makanan  | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 |
+| P0001 | Mie Ayam Original | Makanan  | NULL             | 15000 |      100 | 2021-02-23 14:21:41 |
+| P0013 | Mie Ayam Jamur    | Makanan  | NULL             | 20000 |       50 | 2021-02-23 16:12:53 |
++-------+-------------------+----------+------------------+-------+----------+---------------------+
+3 rows in set (0.01 sec)
+
+
+ SELECT *
+    -> FROM products
+    -> WHERE MATCH(name, description)
+    ->             AGAINST('+ayam -jamur' IN BOOLEAN MODE); 
++-------+-------------------+----------+------------------+-------+----------+---------------------+
+| id    | name              | category | description      | price | quantity | created_at          |
++-------+-------------------+----------+------------------+-------+----------+---------------------+
+| P0003 | Mie Ayam Ceker    | Makanan  | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 |
+| P0001 | Mie Ayam Original | Makanan  | NULL             | 15000 |      100 | 2021-02-23 14:21:41 |
++-------+-------------------+----------+------------------+-------+----------+---------------------+
+2 rows in set (0.00 sec)
+
+ SELECT *
+    -> FROM products
+    -> WHERE MATCH(name, description)
+    ->             AGAINST('bakso' WITH QUERY EXPANSION);
++-------+-------------+----------+-------------+-------+----------+---------------------+
+| id    | name        | category | description | price | quantity | created_at          |
++-------+-------------+----------+-------------+-------+----------+---------------------+
+| P0006 | Bakso Rusuk | Makanan  | NULL        | 25000 |      200 | 2021-02-23 16:12:53 |
+| P0014 | Bakso Telor | Makanan  | NULL        | 20000 |      150 | 2021-02-23 16:12:53 |
+| P0015 | Bakso Jando | Makanan  | NULL        | 25000 |      300 | 2021-02-23 16:12:53 |
++-------+-------------+----------+-------------+-------+----------+---------------------+
+3 rows in set (0.00 sec)
+```
+
+## Tabel Relationship
+```
+CREATE TABLE wishlist
+    -> (
+    ->     id          INT         NOT NULL AUTO_INCREMENT,
+    ->     id_product  VARCHAR(10) NOT NULL,
+    ->     description TEXT,
+    ->     PRIMARY KEY (id),
+    ->     CONSTRAINT fk_wishlist_product
+    ->         FOREIGN KEY (id_product) REFERENCES products (id)
+    -> ) ENGINE = InnoDB;  
+Query OK, 0 rows affected (0.04 sec)
+```
+
+> Dengan perintah tersebut kolom id_product harus sesuai dengan kolom id di tabel products
+> Ketika id di products akan dihapus juga tidak bisa karena sedang digunakan tabel wishlist
+> kecuali menggunakan opsi lain CASCADE, OPTION, NOTNULL
+
+## Join 
+### Macam-macam Join
+#### Inner Join (Default)
+
+```
+SELECT customers.email, products.id, products.name, wishlist.description
+    -> FROM wishlist
+    -> JOIN products ON (products.id = wishlist.id_product)
+    -> JOIN customers ON (customers.id = wishlist.id_customer);
++---------------+-------+-------------------+------------------+
+| email         | id    | name              | description      |
++---------------+-------+-------------------+------------------+
+| eko@gmail.com | P0001 | Mie Ayam Original | Makanan Kesukaan |
++---------------+-------+-------------------+------------------+
+1 row in set (0.00 sec)
+```
+```
+SELECT *
+    -> FROM categories
+    ->          INNER JOIN products ON (products.id_category = categories.id);
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+| id    | name      | id    | name              | description      | price | quantity | created_at          | id_category |
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+| C0001 | Makanan   | P0001 | Mie Ayam Original | NULL             | 15000 |      100 | 2021-02-23 14:21:41 | C0001       |
+| C0001 | Makanan   | P0003 | Mie Ayam Ceker    | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 | C0001       |
+| C0001 | Makanan   | P0006 | Bakso Rusuk       | NULL             | 25000 |      200 | 2021-02-23 16:12:53 | C0001       |
+| C0002 | Minuman   | P0007 | Es Jeruk          | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0002       |
+| C0002 | Minuman   | P0008 | Es Campur         | NULL             | 15000 |      500 | 2021-02-23 16:12:53 | C0002       |
+| C0002 | Minuman   | P0009 | Es Teh Manis      | NULL             |  5000 |      400 | 2021-02-23 16:12:53 | C0002       |
+| C0003 | Lain-Lain | P0010 | Kerupuk           | NULL             |  2500 |     1000 | 2021-02-23 16:12:53 | C0003       |
+| C0003 | Lain-Lain | P0011 | Keripik Udang     | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0003       |
+| C0003 | Lain-Lain | P0012 | Es Krim           | NULL             |  5000 |      200 | 2021-02-23 16:12:53 | C0003       |
+| C0001 | Makanan   | P0013 | Mie Ayam Jamur    | NULL             | 20000 |       50 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0014 | Bakso Telor       | NULL             | 20000 |      150 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0015 | Bakso Jando       | NULL             | 25000 |      300 | 2021-02-23 16:12:53 | C0001       |
+| C0003 | Lain-Lain | P0016 | Permen            | NULL             |  1000 |     1000 | 2021-02-24 10:08:39 | C0003       |
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+13 rows in set (0.00 sec)
+```
+
+#### Left Join
+```
+SELECT *
+    -> FROM categories
+    ->          LEFT JOIN products ON (products.id_category = categories.id);
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+| id    | name      | id    | name              | description      | price | quantity | created_at          | id_category |
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+| C0001 | Makanan   | P0001 | Mie Ayam Original | NULL             | 15000 |      100 | 2021-02-23 14:21:41 | C0001       |
+| C0001 | Makanan   | P0003 | Mie Ayam Ceker    | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 | C0001       |
+| C0001 | Makanan   | P0006 | Bakso Rusuk       | NULL             | 25000 |      200 | 2021-02-23 16:12:53 | C0001       |
+| C0002 | Minuman   | P0007 | Es Jeruk          | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0002       |
+| C0002 | Minuman   | P0008 | Es Campur         | NULL             | 15000 |      500 | 2021-02-23 16:12:53 | C0002       |
+| C0002 | Minuman   | P0009 | Es Teh Manis      | NULL             |  5000 |      400 | 2021-02-23 16:12:53 | C0002       |
+| C0003 | Lain-Lain | P0010 | Kerupuk           | NULL             |  2500 |     1000 | 2021-02-23 16:12:53 | C0003       |
+| C0003 | Lain-Lain | P0011 | Keripik Udang     | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0003       |
+| C0003 | Lain-Lain | P0012 | Es Krim           | NULL             |  5000 |      200 | 2021-02-23 16:12:53 | C0003       |
+| C0001 | Makanan   | P0013 | Mie Ayam Jamur    | NULL             | 20000 |       50 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0014 | Bakso Telor       | NULL             | 20000 |      150 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0015 | Bakso Jando       | NULL             | 25000 |      300 | 2021-02-23 16:12:53 | C0001       |
+| C0003 | Lain-Lain | P0016 | Permen            | NULL             |  1000 |     1000 | 2021-02-24 10:08:39 | C0003       |
+| C0004 | Oleh-Oleh | NULL  | NULL              | NULL             |  NULL |     NULL | NULL                | NULL        |
+| C0005 | Gadget    | NULL  | NULL              | NULL             |  NULL |     NULL | NULL                | NULL        |
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+15 rows in set (0.01 sec)
+```
+
+#### Right Join 
+```
+SELECT *
+    -> FROM categories
+    ->          RIGHT JOIN products ON (products.id_category = categories.id);
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+| id    | name      | id    | name              | description      | price | quantity | created_at          | id_category |
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+| C0001 | Makanan   | P0001 | Mie Ayam Original | NULL             | 15000 |      100 | 2021-02-23 14:21:41 | C0001       |
+| C0001 | Makanan   | P0003 | Mie Ayam Ceker    | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 | C0001       |
+| C0001 | Makanan   | P0006 | Bakso Rusuk       | NULL             | 25000 |      200 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0013 | Mie Ayam Jamur    | NULL             | 20000 |       50 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0014 | Bakso Telor       | NULL             | 20000 |      150 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0015 | Bakso Jando       | NULL             | 25000 |      300 | 2021-02-23 16:12:53 | C0001       |
+| C0002 | Minuman   | P0007 | Es Jeruk          | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0002       |
+| C0002 | Minuman   | P0008 | Es Campur         | NULL             | 15000 |      500 | 2021-02-23 16:12:53 | C0002       |
+| C0002 | Minuman   | P0009 | Es Teh Manis      | NULL             |  5000 |      400 | 2021-02-23 16:12:53 | C0002       |
+| C0003 | Lain-Lain | P0010 | Kerupuk           | NULL             |  2500 |     1000 | 2021-02-23 16:12:53 | C0003       |
+| C0003 | Lain-Lain | P0011 | Keripik Udang     | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0003       |
+| C0003 | Lain-Lain | P0012 | Es Krim           | NULL             |  5000 |      200 | 2021-02-23 16:12:53 | C0003       |
+| C0003 | Lain-Lain | P0016 | Permen            | NULL             |  1000 |     1000 | 2021-02-24 10:08:39 | C0003       |
+| NULL  | NULL      | X0001 | X Satu            | NULL             | 25000 |      200 | 2021-02-24 13:53:23 | NULL        |
+| NULL  | NULL      | X0002 | X Dua             | NULL             | 10000 |      300 | 2021-02-24 13:53:23 | NULL        |
+| NULL  | NULL      | X0003 | X Tiga            | NULL             | 15000 |      500 | 2021-02-24 13:53:23 | NULL        |
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+16 rows in set (0.00 sec)
+```
+
+#### Cross Join
+```
+SELECT *
+    -> FROM categories
+    ->          CROSS JOIN products;
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+| id    | name      | id    | name              | description      | price | quantity | created_at          | id_category |
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+| C0001 | Makanan   | P0001 | Mie Ayam Original | NULL             | 15000 |      100 | 2021-02-23 14:21:41 | C0001       |
+| C0002 | Minuman   | P0001 | Mie Ayam Original | NULL             | 15000 |      100 | 2021-02-23 14:21:41 | C0001       |
+| C0003 | Lain-Lain | P0001 | Mie Ayam Original | NULL             | 15000 |      100 | 2021-02-23 14:21:41 | C0001       |
+| C0004 | Oleh-Oleh | P0001 | Mie Ayam Original | NULL             | 15000 |      100 | 2021-02-23 14:21:41 | C0001       |
+| C0005 | Gadget    | P0001 | Mie Ayam Original | NULL             | 15000 |      100 | 2021-02-23 14:21:41 | C0001       |
+| C0001 | Makanan   | P0003 | Mie Ayam Ceker    | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 | C0001       |
+| C0002 | Minuman   | P0003 | Mie Ayam Ceker    | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 | C0001       |
+| C0003 | Lain-Lain | P0003 | Mie Ayam Ceker    | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 | C0001       |
+| C0004 | Oleh-Oleh | P0003 | Mie Ayam Ceker    | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 | C0001       |
+| C0005 | Gadget    | P0003 | Mie Ayam Ceker    | Mie Ayam + Ceker | 20000 |      100 | 2021-02-23 14:31:03 | C0001       |
+| C0001 | Makanan   | P0006 | Bakso Rusuk       | NULL             | 25000 |      200 | 2021-02-23 16:12:53 | C0001       |
+| C0002 | Minuman   | P0006 | Bakso Rusuk       | NULL             | 25000 |      200 | 2021-02-23 16:12:53 | C0001       |
+| C0003 | Lain-Lain | P0006 | Bakso Rusuk       | NULL             | 25000 |      200 | 2021-02-23 16:12:53 | C0001       |
+| C0004 | Oleh-Oleh | P0006 | Bakso Rusuk       | NULL             | 25000 |      200 | 2021-02-23 16:12:53 | C0001       |
+| C0005 | Gadget    | P0006 | Bakso Rusuk       | NULL             | 25000 |      200 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0007 | Es Jeruk          | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0002       |
+| C0002 | Minuman   | P0007 | Es Jeruk          | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0002       |
+| C0003 | Lain-Lain | P0007 | Es Jeruk          | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0002       |
+| C0004 | Oleh-Oleh | P0007 | Es Jeruk          | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0002       |
+| C0005 | Gadget    | P0007 | Es Jeruk          | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0002       |
+| C0001 | Makanan   | P0008 | Es Campur         | NULL             | 15000 |      500 | 2021-02-23 16:12:53 | C0002       |
+| C0002 | Minuman   | P0008 | Es Campur         | NULL             | 15000 |      500 | 2021-02-23 16:12:53 | C0002       |
+| C0003 | Lain-Lain | P0008 | Es Campur         | NULL             | 15000 |      500 | 2021-02-23 16:12:53 | C0002       |
+| C0004 | Oleh-Oleh | P0008 | Es Campur         | NULL             | 15000 |      500 | 2021-02-23 16:12:53 | C0002       |
+| C0005 | Gadget    | P0008 | Es Campur         | NULL             | 15000 |      500 | 2021-02-23 16:12:53 | C0002       |
+| C0001 | Makanan   | P0009 | Es Teh Manis      | NULL             |  5000 |      400 | 2021-02-23 16:12:53 | C0002       |
+| C0002 | Minuman   | P0009 | Es Teh Manis      | NULL             |  5000 |      400 | 2021-02-23 16:12:53 | C0002       |
+| C0003 | Lain-Lain | P0009 | Es Teh Manis      | NULL             |  5000 |      400 | 2021-02-23 16:12:53 | C0002       |
+| C0004 | Oleh-Oleh | P0009 | Es Teh Manis      | NULL             |  5000 |      400 | 2021-02-23 16:12:53 | C0002       |
+| C0005 | Gadget    | P0009 | Es Teh Manis      | NULL             |  5000 |      400 | 2021-02-23 16:12:53 | C0002       |
+| C0001 | Makanan   | P0010 | Kerupuk           | NULL             |  2500 |     1000 | 2021-02-23 16:12:53 | C0003       |
+| C0002 | Minuman   | P0010 | Kerupuk           | NULL             |  2500 |     1000 | 2021-02-23 16:12:53 | C0003       |
+| C0003 | Lain-Lain | P0010 | Kerupuk           | NULL             |  2500 |     1000 | 2021-02-23 16:12:53 | C0003       |
+| C0004 | Oleh-Oleh | P0010 | Kerupuk           | NULL             |  2500 |     1000 | 2021-02-23 16:12:53 | C0003       |
+| C0005 | Gadget    | P0010 | Kerupuk           | NULL             |  2500 |     1000 | 2021-02-23 16:12:53 | C0003       |
+| C0001 | Makanan   | P0011 | Keripik Udang     | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0003       |
+| C0002 | Minuman   | P0011 | Keripik Udang     | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0003       |
+| C0003 | Lain-Lain | P0011 | Keripik Udang     | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0003       |
+| C0004 | Oleh-Oleh | P0011 | Keripik Udang     | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0003       |
+| C0005 | Gadget    | P0011 | Keripik Udang     | NULL             | 10000 |      300 | 2021-02-23 16:12:53 | C0003       |
+| C0001 | Makanan   | P0012 | Es Krim           | NULL             |  5000 |      200 | 2021-02-23 16:12:53 | C0003       |
+| C0002 | Minuman   | P0012 | Es Krim           | NULL             |  5000 |      200 | 2021-02-23 16:12:53 | C0003       |
+| C0003 | Lain-Lain | P0012 | Es Krim           | NULL             |  5000 |      200 | 2021-02-23 16:12:53 | C0003       |
+| C0004 | Oleh-Oleh | P0012 | Es Krim           | NULL             |  5000 |      200 | 2021-02-23 16:12:53 | C0003       |
+| C0005 | Gadget    | P0012 | Es Krim           | NULL             |  5000 |      200 | 2021-02-23 16:12:53 | C0003       |
+| C0001 | Makanan   | P0013 | Mie Ayam Jamur    | NULL             | 20000 |       50 | 2021-02-23 16:12:53 | C0001       |
+| C0002 | Minuman   | P0013 | Mie Ayam Jamur    | NULL             | 20000 |       50 | 2021-02-23 16:12:53 | C0001       |
+| C0003 | Lain-Lain | P0013 | Mie Ayam Jamur    | NULL             | 20000 |       50 | 2021-02-23 16:12:53 | C0001       |
+| C0004 | Oleh-Oleh | P0013 | Mie Ayam Jamur    | NULL             | 20000 |       50 | 2021-02-23 16:12:53 | C0001       |
+| C0005 | Gadget    | P0013 | Mie Ayam Jamur    | NULL             | 20000 |       50 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0014 | Bakso Telor       | NULL             | 20000 |      150 | 2021-02-23 16:12:53 | C0001       |
+| C0002 | Minuman   | P0014 | Bakso Telor       | NULL             | 20000 |      150 | 2021-02-23 16:12:53 | C0001       |
+| C0003 | Lain-Lain | P0014 | Bakso Telor       | NULL             | 20000 |      150 | 2021-02-23 16:12:53 | C0001       |
+| C0004 | Oleh-Oleh | P0014 | Bakso Telor       | NULL             | 20000 |      150 | 2021-02-23 16:12:53 | C0001       |
+| C0005 | Gadget    | P0014 | Bakso Telor       | NULL             | 20000 |      150 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0015 | Bakso Jando       | NULL             | 25000 |      300 | 2021-02-23 16:12:53 | C0001       |
+| C0002 | Minuman   | P0015 | Bakso Jando       | NULL             | 25000 |      300 | 2021-02-23 16:12:53 | C0001       |
+| C0003 | Lain-Lain | P0015 | Bakso Jando       | NULL             | 25000 |      300 | 2021-02-23 16:12:53 | C0001       |
+| C0004 | Oleh-Oleh | P0015 | Bakso Jando       | NULL             | 25000 |      300 | 2021-02-23 16:12:53 | C0001       |
+| C0005 | Gadget    | P0015 | Bakso Jando       | NULL             | 25000 |      300 | 2021-02-23 16:12:53 | C0001       |
+| C0001 | Makanan   | P0016 | Permen            | NULL             |  1000 |     1000 | 2021-02-24 10:08:39 | C0003       |
+| C0002 | Minuman   | P0016 | Permen            | NULL             |  1000 |     1000 | 2021-02-24 10:08:39 | C0003       |
+| C0003 | Lain-Lain | P0016 | Permen            | NULL             |  1000 |     1000 | 2021-02-24 10:08:39 | C0003       |
+| C0004 | Oleh-Oleh | P0016 | Permen            | NULL             |  1000 |     1000 | 2021-02-24 10:08:39 | C0003       |
+| C0005 | Gadget    | P0016 | Permen            | NULL             |  1000 |     1000 | 2021-02-24 10:08:39 | C0003       |
+| C0001 | Makanan   | X0001 | X Satu            | NULL             | 25000 |      200 | 2021-02-24 13:53:23 | NULL        |
+| C0002 | Minuman   | X0001 | X Satu            | NULL             | 25000 |      200 | 2021-02-24 13:53:23 | NULL        |
+| C0003 | Lain-Lain | X0001 | X Satu            | NULL             | 25000 |      200 | 2021-02-24 13:53:23 | NULL        |
+| C0004 | Oleh-Oleh | X0001 | X Satu            | NULL             | 25000 |      200 | 2021-02-24 13:53:23 | NULL        |
+| C0005 | Gadget    | X0001 | X Satu            | NULL             | 25000 |      200 | 2021-02-24 13:53:23 | NULL        |
+| C0001 | Makanan   | X0002 | X Dua             | NULL             | 10000 |      300 | 2021-02-24 13:53:23 | NULL        |
+| C0002 | Minuman   | X0002 | X Dua             | NULL             | 10000 |      300 | 2021-02-24 13:53:23 | NULL        |
+| C0003 | Lain-Lain | X0002 | X Dua             | NULL             | 10000 |      300 | 2021-02-24 13:53:23 | NULL        |
+| C0004 | Oleh-Oleh | X0002 | X Dua             | NULL             | 10000 |      300 | 2021-02-24 13:53:23 | NULL        |
+| C0005 | Gadget    | X0002 | X Dua             | NULL             | 10000 |      300 | 2021-02-24 13:53:23 | NULL        |
+| C0001 | Makanan   | X0003 | X Tiga            | NULL             | 15000 |      500 | 2021-02-24 13:53:23 | NULL        |
+| C0002 | Minuman   | X0003 | X Tiga            | NULL             | 15000 |      500 | 2021-02-24 13:53:23 | NULL        |
+| C0003 | Lain-Lain | X0003 | X Tiga            | NULL             | 15000 |      500 | 2021-02-24 13:53:23 | NULL        |
+| C0004 | Oleh-Oleh | X0003 | X Tiga            | NULL             | 15000 |      500 | 2021-02-24 13:53:23 | NULL        |
+| C0005 | Gadget    | X0003 | X Tiga            | NULL             | 15000 |      500 | 2021-02-24 13:53:23 | NULL        |
++-------+-----------+-------+-------------------+------------------+-------+----------+---------------------+-------------+
+80 rows in set (0.00 sec)
 ```
